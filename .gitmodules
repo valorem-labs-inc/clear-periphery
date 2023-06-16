@@ -4,3 +4,6 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
+[submodule "lib/valorem-core"]
+	path = lib/valorem-core
+	url = https://github.com/valorem-labs-inc/valorem-core
