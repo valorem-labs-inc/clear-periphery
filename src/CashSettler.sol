@@ -173,7 +173,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     }
 
     /**
-     * @notice Exercise an option
+     * @notice Exercise an option via 2-leg swap
      * @param data The data for exercising an option
      */
     function exercise2Leg(Exercise2LegData calldata data) onlyValidOption(data.optionId) external {
@@ -195,7 +195,10 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         // Exercise options
         _exercise2Leg(exerciseData);
         
-        emit Call(msg.sender, data.optionId, data.optionsAmount);
+        if (data.optionType == OptionType.CALL) 
+            emit Call(msg.sender, data.optionId, data.optionsAmount);
+        else 
+            emit Put(msg.sender, data.optionId, data.optionsAmount);
     }
 
 

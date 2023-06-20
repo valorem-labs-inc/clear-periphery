@@ -84,6 +84,23 @@ contract CashSettlerTest is Test {
     uint16 private constant DIVISOR_BPS = 10_000;
     uint24 private constant DIVISOR_HUNDREDTHS_OF_BPS = 1_000_000;
 
+    // Duplicated events from the interface
+    /**
+     * @notice Emitted when an call option is exercised
+     * @param sender The address that initiated the exercise
+     * @param optionId The option id that was exercised
+     * @param amount The amount of options that were exercised
+     */
+    event Call(address indexed sender, uint256 indexed optionId, uint256 amount);
+    /**
+     * @notice Emitted when a put option is exercised
+     * @param sender The address that initiated the exercise
+     * @param optionId The option id that was exercised
+     * @param amount The amount of options that were exercised
+     */
+    event Put(address indexed sender, uint256 indexed optionId, uint256 amount);
+
+
     function setUp() public {
         // fork mainnet and warp to now
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 17381236); // 17274287, 17344069
@@ -409,6 +426,9 @@ contract CashSettlerTest is Test {
         vm.startPrank(you);
 
         clearingHouse.setApprovalForAll(address(vault), true);
+
+        vm.expectEmit(true, true, true, true);
+        emit Call(you, callOption, memesAmount);
         vault.exercise2Leg(ICashSettler.Exercise2LegData({
             optionType: ICashSettler.OptionType.CALL,
             optionId: callOption,
@@ -554,6 +574,9 @@ contract CashSettlerTest is Test {
         vm.startPrank(you);
 
         clearingHouse.setApprovalForAll(address(vault), true);
+
+        vm.expectEmit(true, true, true, true);
+        emit Put(you, putOption, memesAmount);
         vault.exercise2Leg(ICashSettler.Exercise2LegData({
             optionType: ICashSettler.OptionType.PUT,
             optionId: putOption,
