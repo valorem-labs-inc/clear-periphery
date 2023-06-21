@@ -56,7 +56,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     //  Uniswap State
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev The address of WETH-USDC pool as Clearing House is based on USDC.
+    /// @dev The address of WETH-USDC pool as ValoremOptionsClearinghouse is based on USDC.
     IUniswapV3Pool private immutable POOL_WETH_USDC;
 
     /*//////////////////////////////////////////////////////////////
@@ -87,9 +87,9 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
      * @param _poolWethUsdc The address of WETH-USDC pool.
      */
     constructor(ValoremOptionsClearinghouse _clearingHouse, IERC20 _weth, IERC20 _usdc, IUniswapV3Pool _poolWethUsdc) {
-        // Approve clearing house to spend WETH
+        // Approve ValoremOptionsClearinghouse to spend WETH
         IERC20(_weth).approve(address(_clearingHouse), type(uint256).max);
-        // Approve clearing house to spend USDC
+        // Approve ValoremOptionsClearinghouse to spend USDC
         IERC20(_usdc).approve(address(_clearingHouse), type(uint256).max);
 
         // Save state
@@ -123,7 +123,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     function exercise2Leg(Exercise2LegData calldata data) onlyValidOption(data.optionId) external {
         // Transform the data into internal format
 
-        // Approve a token to be spent by clearing house
+        // Approve a token to be spent by ValoremOptionsClearinghouse
         data.token.approve(address(CLEARINGHOUSE), type(uint256).max);
 
         // Transfer options to this contract
@@ -206,7 +206,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             // Repay to the second swap straight away
             WETH.transfer(address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
 
-            // Exercise options on the clearing house
+            // Exercise options on the ValoremOptionsClearinghouse
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
