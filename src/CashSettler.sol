@@ -7,107 +7,84 @@ import {ERC1155TokenReceiver} from "solmate/tokens/ERC1155.sol";
 import {IValoremOptionsClearinghouse} from "valorem-core/interfaces/IValoremOptionsClearinghouse.sol";
 import {ValoremOptionsClearinghouse} from "valorem-core/ValoremOptionsClearinghouse.sol";
 import {ICashSettler} from "./interfaces/ICashSettler.sol";
-import {console2} from "forge-std/console2.sol";
 
+/**
+ * @title CashSettler.
+ * @notice CashSettler is a contract that allows users to exercise options with cash settlement.
+ */
 contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallback {
-    ////####////####////####////####////####////####////
-    ////####////####    Structs         ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Internal Data Structures
+    //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @dev Payload for swap callback
-     * @param caller The caller of the `exercise` function
-     * @param poolA The pool to swap from (i.e. MEME/WETH)
-     * @param poolB The pool to swap to (i.e. WETH/USDC)
-     * @param optionId Option Id assigned from ValoremOptionsClearinghouse
-     * @param optionsAmount The amount of options to exercise (i.e. 10)
-     * @param exerciseToken The token to use for exercising (i.e. MEME)
-     * @param depth The depth of the swap
-     * @param amountSurplus Minimum amount of surplus, if it is less, the call reverts
-     * @param amountOutSwap2 Amount of tokens needed to be paid out after second swap
-     */
+    /// @notice Payload for swap callback.
     struct SwapCallbackData {
+        /// @custom:member caller The caller of the `exercise` function.
         address caller;
 
+        /// @custom:member poolA The pool to swap from (i.e. MEME/WETH).
         IUniswapV3Pool poolA;
+        /// @custom:member poolB The pool to swap to (i.e. WETH/USDC).
         IUniswapV3Pool poolB;
 
+        /// @custom:member optionId Option Id assigned from ValoremOptionsClearinghouse.
         uint256 optionId;
+        /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
+        /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
         IERC20 exerciseToken;
 
+        /// @custom:member depth The depth of the swap.
         uint8 depth;
+        /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
         uint256 amountSurplus;
+        /// @custom:member amountOutSwap2 Amount of tokens needed to be paid out after second swap.
         uint256 amountOutSwap2;
     }
 
-    /**
-     * @notice Payload for exercising an option via 2-leg swap
-     * @param optionType The type of option to exercise (i.e. CALL)
-     * @param optionsId Option Id assigned from ClearingHouse
-     * @param optionsAmount The amount of options to exercise (i.e. 10)
-     * @param underlyingToken The underlying token of the option (i.e. USDC)
-     * @param exerciseToken The token to use for exercising (i.e. MEME)
-     * @param exerciseAmount The amount of tokens to exercise (i.e. 10e9 MEME)
-     * @param amountSurplus The minimum amount of USDC to receive
-     * @param poolA The pool to swap from (i.e. MEME/WETH)
-     * @param poolB The pool to swap to (i.e. WETH/USDC)
-     */
-    struct Exercise2LegDataInternal {
-        uint256 optionId;
-        uint112 optionsAmount;
-        IERC20 underlyingToken;
-        IERC20 exerciseToken;
-        uint256 exerciseAmount;
-        uint256 amountSurplus;
-        IUniswapV3Pool poolA;
-        IUniswapV3Pool poolB;
-    }
-
-    ////####////####////####////####////####////####////
-    ////####////####    Token State     ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Tokens
+    //////////////////////////////////////////////////////////////*/
 
     // TODO optimize storage layout, probably store these as IERC20Minimal
-
-    /// @dev The address of WETH
+    /// @dev The address of WETH.
     IERC20 private immutable WETH;
-    /// @dev The address of USDC
+    /// @dev The address of USDC.
     IERC20 private immutable USDC;
 
-    ////####////####////####////####////####////####////
-    ////####////####    Uniswap State   ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Uniswap State
+    //////////////////////////////////////////////////////////////*/
 
-    /// @dev The address of WETH-USDC pool as Clearing House is based on USDC
+    /// @dev The address of WETH-USDC pool as Clearing House is based on USDC.
     IUniswapV3Pool private immutable POOL_WETH_USDC;
 
-    ////####////####////####////####////####////####////
-    ////####////####    Valorem State   ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Uniswap Constants
+    //////////////////////////////////////////////////////////////*/
 
-    /// @dev The address of ValoremOptionsClearinghouse
-    ValoremOptionsClearinghouse private immutable CLEARING_HOUSE;
-
-    ////####////####////####////####////####////####////
-    ////####////####    Uniswap Constants ##////####////
-    ////####////####////####////####////####////####////
-
-    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK)
+    /// @dev The minimum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MIN_TICK).
     uint160 private constant MIN_SQRT_RATIO = 4295128739;
-    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK)
+    /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK).
     uint160 private constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
 
-    ////####////####////####////####////####////####////
-    ////####////####    Constructor     ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Valorem State
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The address of ValoremOptionsClearinghouse.
+    ValoremOptionsClearinghouse private immutable CLEARINGHOUSE;
+
+    /*//////////////////////////////////////////////////////////////
+    //  Constructor
+    //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Constructor
-     * @param _clearingHouse The address of ValoremOptionsClearinghouse
-     * @param _weth The address of WETH
-     * @param _usdc The address of USDC
-     * @param _poolWethUsdc The address of WETH-USDC pool
+     * @notice Constructor.
+     * @param _clearingHouse The address of ValoremOptionsClearinghouse.
+     * @param _weth The address of WETH.
+     * @param _usdc The address of USDC.
+     * @param _poolWethUsdc The address of WETH-USDC pool.
      */
     constructor(ValoremOptionsClearinghouse _clearingHouse, IERC20 _weth, IERC20 _usdc, IUniswapV3Pool _poolWethUsdc) {
         // Approve clearing house to spend WETH
@@ -116,84 +93,71 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         IERC20(_usdc).approve(address(_clearingHouse), type(uint256).max);
 
         // Save state
-        CLEARING_HOUSE = _clearingHouse;
+        CLEARINGHOUSE = _clearingHouse;
         POOL_WETH_USDC = _poolWethUsdc;
         WETH = _weth;
         USDC = _usdc;
     }
 
-    ////####////####////####////####////####////####////
-    ////####////####    Exercise        ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  Modifiers
+    //////////////////////////////////////////////////////////////*/
 
     modifier onlyValidOption(uint256 optionId) {
         // Check if option is Long, if not – revert
-        if (CLEARING_HOUSE.tokenType(optionId) != IValoremOptionsClearinghouse.TokenType.Option) {
+        if (CLEARINGHOUSE.tokenType(optionId) != IValoremOptionsClearinghouse.TokenType.Option) {
             revert OnlyLongs(optionId);
         }
 
         _;
     }
 
-    /// @dev Internal exercise function
-    function _exercise2Leg(Exercise2LegDataInternal memory exerciseData) internal {
-        // Transfer options to this contract
-        CLEARING_HOUSE.safeTransferFrom(msg.sender, address(this), exerciseData.optionId, exerciseData.optionsAmount, "");
+    /*//////////////////////////////////////////////////////////////
+    //  Exercising
+    //////////////////////////////////////////////////////////////*/
 
-        // Determine tick direction for `poolA`
-        bool zeroForOne = exerciseData.poolA.token0() != address(WETH);
+    /**
+     * @notice Exercise an option via 2-leg swap.
+     * @param data The data for exercising an option.
+     */
+    function exercise2Leg(Exercise2LegData calldata data) onlyValidOption(data.optionId) external {
+        // Transform the data into internal format
+
+        // Approve a token to be spent by clearing house
+        data.token.approve(address(CLEARINGHOUSE), type(uint256).max);
+
+        // Transfer options to this contract
+        CLEARINGHOUSE.safeTransferFrom(msg.sender, address(this), data.optionId, data.optionsAmount, "");
+
+        // Get the first pool that we will swap from
+        IUniswapV3Pool poolA = data.optionType == OptionType.CALL ? data.poolToWeth : POOL_WETH_USDC;
 
         // Prepare Swap Callback Data
-        bytes memory data = abi.encode(
+        bytes memory callbackData = abi.encode(
             SwapCallbackData({
-                poolA: exerciseData.poolA,
-                poolB: exerciseData.poolB,
-                optionId: exerciseData.optionId,
-                optionsAmount: exerciseData.optionsAmount,
+                poolA: poolA,
+                poolB: poolA == data.poolToWeth ? POOL_WETH_USDC : data.poolToWeth,
+                optionId: data.optionId,
+                optionsAmount: data.optionsAmount,
                 depth: 0,
-                exerciseToken: exerciseData.exerciseToken,
-                amountSurplus: exerciseData.amountSurplus,
+                exerciseToken: data.optionType == OptionType.CALL ? data.token : USDC,
+                amountSurplus: data.amountSurplus,
                 amountOutSwap2: 0,
                 caller: msg.sender
             })
         );
 
-            console2.log("zeroForOne", zeroForOne);
-            console2.log("USDC balance", USDC.balanceOf(address(this)));
-            console2.log("WETH balance", WETH.balanceOf(address(this)));
+        // Determine tick direction for `poolA`
+        bool zeroForOne = poolA.token0() != address(WETH);
 
         // Initiate the first swap
-        exerciseData.poolA.swap({
+        poolA.swap({
             recipient: address(this),
             zeroForOne: zeroForOne,
-            amountSpecified: -1 * int256(exerciseData.exerciseAmount),
+            amountSpecified: -1 * int256(data.amount),
             sqrtPriceLimitX96: zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
-            data: data
+            data: callbackData
         });
-    }
-
-    /**
-     * @notice Exercise an option via 2-leg swap
-     * @param data The data for exercising an option
-     */
-    function exercise2Leg(Exercise2LegData calldata data) onlyValidOption(data.optionId) external {
-        // Transform the data into internal format
-        Exercise2LegDataInternal memory exerciseData = Exercise2LegDataInternal({
-            optionId: data.optionId,
-            optionsAmount: data.optionsAmount,
-            underlyingToken: data.optionType == OptionType.CALL ? USDC : data.token,
-            exerciseToken: data.optionType == OptionType.CALL ? data.token : USDC,
-            exerciseAmount: data.amount,
-            amountSurplus: data.amountSurplus,
-            poolA: data.optionType == OptionType.CALL ? data.poolToWeth : POOL_WETH_USDC,
-            poolB: data.optionType == OptionType.CALL ? POOL_WETH_USDC : data.poolToWeth
-        });
-
-        // Approve a token to be spent by clearing house
-        data.token.approve(address(CLEARING_HOUSE), type(uint256).max);
-
-        // Exercise options
-        _exercise2Leg(exerciseData);
         
         if (data.optionType == OptionType.CALL) 
             emit Call(msg.sender, data.optionId, data.optionsAmount);
@@ -201,6 +165,9 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             emit Put(msg.sender, data.optionId, data.optionsAmount);
     }
 
+    /*//////////////////////////////////////////////////////////////
+    //  Uniswap V3 Callback
+    //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IUniswapV3SwapCallback
     function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata data) external override {
@@ -210,10 +177,6 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         // Determine tick direction for `poolB`
         bool zeroForOne = decoded.poolB.token0() == address(WETH);
 
-            console2.log("zeroForOne", zeroForOne);
-            console2.log("MEME balance", decoded.exerciseToken.balanceOf(address(this)));
-            console2.log("USDC balance", USDC.balanceOf(address(this)));
-            console2.log("WETH balance", WETH.balanceOf(address(this)));
         if (decoded.depth == 0) {
             // If a caller is not a correct pool, revert
             if (msg.sender != address(decoded.poolA)) {
@@ -244,7 +207,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             WETH.transfer(address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
 
             // Exercise options on the clearing house
-            CLEARING_HOUSE.exercise(decoded.optionId, decoded.optionsAmount);
+            CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
             decoded.exerciseToken.transfer(address(decoded.poolA), decoded.amountOutSwap2);
@@ -260,9 +223,9 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         }
     }
 
-    ////####////####////####////####////####////####////
-    ////####////####    ERC1155 Receive ####////####////
-    ////####////####////####////####////####////####////
+    /*//////////////////////////////////////////////////////////////
+    //  ERC155 Overrides
+    //////////////////////////////////////////////////////////////*/
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata)
         external
