@@ -100,6 +100,31 @@ contract CashSettlerTest is Test {
      */
     event Put(address indexed sender, uint256 indexed optionId, uint256 amount);
 
+    // Duplicated internal struct from the contract
+    /// @notice Payload for swap callback.
+    struct SwapCallbackData {
+        /// @custom:member caller The caller of the `exercise` function.
+        address caller;
+
+        /// @custom:member poolA The pool to swap from (i.e. MEME/WETH).
+        IUniswapV3Pool poolA;
+        /// @custom:member poolB The pool to swap to (i.e. WETH/USDC).
+        IUniswapV3Pool poolB;
+
+        /// @custom:member optionId Option Id assigned from ValoremOptionsClearinghouse.
+        uint256 optionId;
+        /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
+        uint112 optionsAmount;
+        /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
+        IERC20 exerciseToken;
+
+        /// @custom:member depth The depth of the swap.
+        uint8 depth;
+        /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
+        uint256 amountSurplus;
+        /// @custom:member amountToRepaySwap2 Amount of tokens needed to be paid out after second swap.
+        uint256 amountToRepaySwap2;
+    }
 
     function setUp() public {
         // fork mainnet and warp to now
@@ -231,7 +256,7 @@ contract CashSettlerTest is Test {
         clearingHouse.setApprovalForAll(address(vault), true);
         uint256 short = clearingHouse.write(itmcall, 100);
 
-        vm.expectRevert(abi.encodeWithSelector(ICashSettler.OnlyLongs.selector, short));
+        vm.expectRevert(abi.encodeWithSelector(ICashSettler.OnlyLongsError.selector, short));
         vault.exercise2Leg(ICashSettler.Exercise2LegData({
             optionType: ICashSettler.OptionType.CALL,
             optionId: short,
@@ -273,6 +298,45 @@ contract CashSettlerTest is Test {
         }));
     }
 
+    function testRevert_uniswapV3SwapCallback_whenCalledNotFromPool() public {
+        memecoin.approve(address(clearingHouse), type(uint256).max);
+        clearingHouse.setApprovalForAll(address(vault), true);
+
+        vm.expectRevert(abi.encodeWithSelector(ICashSettler.UnauthorizedError.selector));
+        bytes memory data = abi.encode(SwapCallbackData({
+            caller: address(0),
+            poolA: POOL_USDC_WETH,
+            poolB: POOL_PEPE_WETH,
+            optionId: 0,
+            optionsAmount: 0,
+            exerciseToken: IERC20(address(0)),
+            depth:0,
+            amountSurplus: 0,
+            amountToRepaySwap2: 0
+        }));
+        
+        vault.uniswapV3SwapCallback(2, 2, data);
+    }
+
+    function testRevert_uniswapV3SwapCallback_whenDepthIsInvalid() public {
+        memecoin.approve(address(clearingHouse), type(uint256).max);
+        clearingHouse.setApprovalForAll(address(vault), true);
+
+        vm.expectRevert(abi.encodeWithSelector(ICashSettler.InvalidDepthError.selector, 2));
+        bytes memory data = abi.encode(SwapCallbackData({
+            caller: address(0),
+            poolA: POOL_USDC_WETH,
+            poolB: POOL_PEPE_WETH,
+            optionId: 0,
+            optionsAmount: 0,
+            exerciseToken: IERC20(address(0)),
+            depth:2,
+            amountSurplus: 0,
+            amountToRepaySwap2: 0
+        }));
+        
+        vault.uniswapV3SwapCallback(2, 2, data);
+    }
     function testRevert_exercise2Leg_whenHoldWrongTypeOfLongs() public {
         memecoin.approve(address(clearingHouse), type(uint256).max);
         clearingHouse.setApprovalForAll(address(vault), true);

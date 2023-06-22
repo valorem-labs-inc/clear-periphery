@@ -9,10 +9,21 @@ import {IERC20,IUniswapV3Pool} from "./External.sol";
  */
 interface ICashSettler {
     /**
-     * @notice Throws if trying to exercise short.
+     * @notice Thrown if trying to exercise short.
      * @param optionId The option id that was not exercised.
      */
-    error OnlyLongs(uint256 optionId);
+    error OnlyLongsError(uint256 optionId);
+    /**
+     * @notice Thrown if trying to call Uniswap V3 Callback not
+     * from the pool.
+     */
+    error UnauthorizedError();
+    /**
+     * @notice Thrown if depth passed in Uniswap V3 Callback is
+     * incorrect.
+     * @param depth Incorrect depth.
+     */
+    error InvalidDepthError(uint256 depth);
 
     /**
      * @notice Emitted when an call option is exercised.

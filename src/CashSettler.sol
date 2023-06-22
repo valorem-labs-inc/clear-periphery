@@ -38,8 +38,8 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         uint8 depth;
         /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
         uint256 amountSurplus;
-        /// @custom:member amountOutSwap2 Amount of tokens needed to be paid out after second swap.
-        uint256 amountOutSwap2;
+        /// @custom:member amountToRepaySwap2 Amount of tokens needed to be paid out after second swap.
+        uint256 amountToRepaySwap2;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -106,7 +106,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     modifier onlyValidOption(uint256 optionId) {
         // Check if option is Long, if not – revert
         if (CLEARINGHOUSE.tokenType(optionId) != IValoremOptionsClearinghouse.TokenType.Option) {
-            revert OnlyLongs(optionId);
+            revert OnlyLongsError(optionId);
         }
 
         _;
@@ -142,7 +142,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
                 depth: 0,
                 exerciseToken: data.optionType == OptionType.CALL ? data.token : USDC,
                 amountSurplus: data.amountSurplus,
-                amountOutSwap2: 0,
+                amountToRepaySwap2: 0,
                 caller: msg.sender
             })
         );
@@ -180,13 +180,13 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         if (decoded.depth == 0) {
             // If a caller is not a correct pool, revert
             if (msg.sender != address(decoded.poolA)) {
-                revert("Unauthorized");
+                revert UnauthorizedError();
             }
 
             // Increment depth as we are going to make another swap
             decoded.depth++;
             // Save amount out from the first swap to be paid out later
-            decoded.amountOutSwap2 = uint256(amount0Delta);
+            decoded.amountToRepaySwap2 = uint256(amount0Delta);
 
 
             // Initiate the second swap
@@ -200,7 +200,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         } else if (decoded.depth == 1) {
             // If a caller is not a correct pool, revert
             if (msg.sender != address(decoded.poolB)) {
-                revert("Unauthorized");
+                revert UnauthorizedError();
             }
 
             // Repay to the second swap straight away
@@ -210,16 +210,16 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            decoded.exerciseToken.transfer(address(decoded.poolA), decoded.amountOutSwap2);
+            decoded.exerciseToken.transfer(address(decoded.poolA), decoded.amountToRepaySwap2);
 
             // Check if the exercise is profitable and revert if not
             require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable"); 
 
             // Pay the profits out
             // TODO see if we can not do the balance call and instead just know the amount from the swap2 callback
-            USDC.transfer(decoded.caller, IERC20(USDC).balanceOf(address(this)));
+            USDC.transfer(decoded.caller, USDC.balanceOf(address(this)));
         } else {
-            revert("Invalid depth");
+            revert InvalidDepthError(decoded.depth);
         }
     }
 
