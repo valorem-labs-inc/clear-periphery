@@ -5,7 +5,7 @@
         "chainlink/=lib/chainlink/src/",
         "ds-test/=lib/ds-test/src/",
         "forge-std/=lib/forge-std/src/",
-        "solmate/=lib/solmate/src/"
+        "solmate/=lib/solmate/src/",
         "valorem-core/=lib/valorem-core/src/"
     ]
 }
