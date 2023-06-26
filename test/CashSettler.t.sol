@@ -125,7 +125,7 @@ contract CashSettlerTest is Test {
 
     function setUp() public {
         // fork mainnet and warp to now
-        vm.createSelectFork(vm.envString("RPC_URL"), 17381236); // 17274287, 17344069
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 17381236); // 17274287, 17344069
         vm.warp(today);
 
         // deploy infrastructure
