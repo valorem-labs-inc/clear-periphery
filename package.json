@@ -6,7 +6,7 @@
     "homepage": "https://valorem.xyz",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/valorem-labs-inc/valorem-core.git"
+        "url": "git+https://github.com/valorem-labs-inc/clear-periphery.git"
     },
     "scripts": {
         "fmt": "forge fmt",
