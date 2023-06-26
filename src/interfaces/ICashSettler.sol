@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.16;
 
-import {IERC20,IUniswapV3Pool} from "./External.sol";
+import {IERC20, IUniswapV3Pool} from "./External.sol";
 
 /**
  * @title ICashSettler.
@@ -41,7 +41,10 @@ interface ICashSettler {
     event Put(address indexed sender, uint256 indexed optionId, uint256 amount);
 
     // @notice Option type.
-    enum OptionType {CALL, PUT}
+    enum OptionType {
+        CALL,
+        PUT
+    }
 
     /// @notice Payload for exercising an option via 2-leg swap.
     struct Exercise2LegData {

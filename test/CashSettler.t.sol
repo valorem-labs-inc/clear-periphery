@@ -4,7 +4,7 @@ pragma solidity 0.8.16;
 import "forge-std/Test.sol";
 import {console2} from "forge-std/console2.sol";
 import {StdStyle} from "forge-std/StdStyle.sol";
-import { CashSettler, ICashSettler } from "../src/CashSettler.sol";
+import {CashSettler, ICashSettler} from "../src/CashSettler.sol";
 import {IValoremOptionsClearinghouse} from "valorem-core/interfaces/IValoremOptionsClearinghouse.sol";
 import {ValoremOptionsClearinghouse} from "valorem-core/ValoremOptionsClearinghouse.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
@@ -105,19 +105,16 @@ contract CashSettlerTest is Test {
     struct SwapCallbackData {
         /// @custom:member caller The caller of the `exercise` function.
         address caller;
-
         /// @custom:member poolA The pool to swap from (i.e. MEME/WETH).
         IUniswapV3Pool poolA;
         /// @custom:member poolB The pool to swap to (i.e. WETH/USDC).
         IUniswapV3Pool poolB;
-
         /// @custom:member optionId Option Id assigned from ValoremOptionsClearinghouse.
         uint256 optionId;
         /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
         /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
         IERC20 exerciseToken;
-
         /// @custom:member depth The depth of the swap.
         uint8 depth;
         /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
@@ -257,15 +254,17 @@ contract CashSettlerTest is Test {
         uint256 short = clearingHouse.write(itmcall, 100);
 
         vm.expectRevert(abi.encodeWithSelector(ICashSettler.OnlyLongsError.selector, short));
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.CALL,
-            optionId: short,
-            optionsAmount: 0,
-            amount: 0,
-            token: IERC20(address(0)),
-            amountSurplus: 0,
-            poolToWeth: IUniswapV3Pool(address(0))
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.CALL,
+                optionId: short,
+                optionsAmount: 0,
+                amount: 0,
+                token: IERC20(address(0)),
+                amountSurplus: 0,
+                poolToWeth: IUniswapV3Pool(address(0))
+            })
+        );
     }
 
     // function testRevert_exercise2Leg_whenOptionExpired() public {
@@ -287,15 +286,17 @@ contract CashSettlerTest is Test {
 
         vm.expectRevert(stdError.arithmeticError);
 
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.CALL,
-            optionsAmount: 51,
-            optionId: itmcall,
-            amount: 0,
-            token: IERC20(address(memecoin)),
-            amountSurplus: 0,
-            poolToWeth: POOL_PEPE_WETH
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.CALL,
+                optionsAmount: 51,
+                optionId: itmcall,
+                amount: 0,
+                token: IERC20(address(memecoin)),
+                amountSurplus: 0,
+                poolToWeth: POOL_PEPE_WETH
+            })
+        );
     }
 
     function testRevert_uniswapV3SwapCallback_whenCalledNotFromPool() public {
@@ -303,18 +304,20 @@ contract CashSettlerTest is Test {
         clearingHouse.setApprovalForAll(address(vault), true);
 
         vm.expectRevert(abi.encodeWithSelector(ICashSettler.UnauthorizedError.selector));
-        bytes memory data = abi.encode(SwapCallbackData({
-            caller: address(0),
-            poolA: POOL_USDC_WETH,
-            poolB: POOL_PEPE_WETH,
-            optionId: 0,
-            optionsAmount: 0,
-            exerciseToken: IERC20(address(0)),
-            depth:0,
-            amountSurplus: 0,
-            amountToRepaySwap2: 0
-        }));
-        
+        bytes memory data = abi.encode(
+            SwapCallbackData({
+                caller: address(0),
+                poolA: POOL_USDC_WETH,
+                poolB: POOL_PEPE_WETH,
+                optionId: 0,
+                optionsAmount: 0,
+                exerciseToken: IERC20(address(0)),
+                depth: 0,
+                amountSurplus: 0,
+                amountToRepaySwap2: 0
+            })
+        );
+
         vault.uniswapV3SwapCallback(2, 2, data);
     }
 
@@ -323,20 +326,23 @@ contract CashSettlerTest is Test {
         clearingHouse.setApprovalForAll(address(vault), true);
 
         vm.expectRevert(abi.encodeWithSelector(ICashSettler.InvalidDepthError.selector, 2));
-        bytes memory data = abi.encode(SwapCallbackData({
-            caller: address(0),
-            poolA: POOL_USDC_WETH,
-            poolB: POOL_PEPE_WETH,
-            optionId: 0,
-            optionsAmount: 0,
-            exerciseToken: IERC20(address(0)),
-            depth:2,
-            amountSurplus: 0,
-            amountToRepaySwap2: 0
-        }));
-        
+        bytes memory data = abi.encode(
+            SwapCallbackData({
+                caller: address(0),
+                poolA: POOL_USDC_WETH,
+                poolB: POOL_PEPE_WETH,
+                optionId: 0,
+                optionsAmount: 0,
+                exerciseToken: IERC20(address(0)),
+                depth: 2,
+                amountSurplus: 0,
+                amountToRepaySwap2: 0
+            })
+        );
+
         vault.uniswapV3SwapCallback(2, 2, data);
     }
+
     function testRevert_exercise2Leg_whenHoldWrongTypeOfLongs() public {
         memecoin.approve(address(clearingHouse), type(uint256).max);
         clearingHouse.setApprovalForAll(address(vault), true);
@@ -345,15 +351,17 @@ contract CashSettlerTest is Test {
 
         vm.expectRevert(stdError.arithmeticError);
 
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.CALL,
-            optionsAmount: 50,
-            optionId: itmcall,
-            amount: 50,
-            token: IERC20(address(memecoin)),
-            amountSurplus: 0,
-            poolToWeth: POOL_PEPE_WETH
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.CALL,
+                optionsAmount: 50,
+                optionId: itmcall,
+                amount: 50,
+                token: IERC20(address(memecoin)),
+                amountSurplus: 0,
+                poolToWeth: POOL_PEPE_WETH
+            })
+        );
     }
 
     function testRevert_exercise2Leg_whenInsufficientApprovalGranted() public {
@@ -363,15 +371,17 @@ contract CashSettlerTest is Test {
 
         vm.expectRevert("NOT_AUTHORIZED");
 
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.CALL,
-            optionId: itmcall,
-            optionsAmount: 10,
-            amount: 50,
-            token: IERC20(address(memecoin)),
-            amountSurplus: 0,
-            poolToWeth: POOL_PEPE_WETH
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.CALL,
+                optionId: itmcall,
+                optionsAmount: 10,
+                amount: 50,
+                token: IERC20(address(memecoin)),
+                amountSurplus: 0,
+                poolToWeth: POOL_PEPE_WETH
+            })
+        );
     }
 
     ////####////####////####////####////####////####////
@@ -493,15 +503,17 @@ contract CashSettlerTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Call(you, callOption, memesAmount);
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.CALL,
-            optionId: callOption,
-            optionsAmount: memesAmount,
-            amount: assetRequiredInWETH,
-            token: LINK,
-            amountSurplus: minimumSurplusInUSDC,
-            poolToWeth: POOL_LINK_WETH
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.CALL,
+                optionId: callOption,
+                optionsAmount: memesAmount,
+                amount: assetRequiredInWETH,
+                token: LINK,
+                amountSurplus: minimumSurplusInUSDC,
+                poolToWeth: POOL_LINK_WETH
+            })
+        );
 
         assertEq(clearingHouse.balanceOf(me, callOption), 91, "clearinghouse my balance after exercise");
         assertEq(clearingHouse.balanceOf(you, callOption), 0, "clearinghouse your balance after exercise");
@@ -603,15 +615,15 @@ contract CashSettlerTest is Test {
 
         // account for exercise fee
         assetRequiredInLINK += _valoremFee(assetRequiredInLINK);
-    console2.log("assetRequiredInLINK with valorem fee: ", assetRequiredInLINK);
+        console2.log("assetRequiredInLINK with valorem fee: ", assetRequiredInLINK);
 
-    //     // account for MEME pool fee
-    //     assetRequiredInLINK += (assetRequiredInLINK * POOL_LINK_FEE) / DIVISOR_HUNDREDTHS_OF_BPS;
-    // console2.log("assetRequiredInLINK with valorem fee and meme pool fee: ", assetRequiredInLINK);
-    //
-    //     // account for USDC pool fee
-    //     assetRequiredInLINK += (assetRequiredInLINK * POOL_USDC_FEE) / DIVISOR_HUNDREDTHS_OF_BPS;
-    // console2.log("assetRequiredInLINK with valorem fee and meme pool fee and usdc pool fee: ", assetRequiredInLINK);
+        //     // account for MEME pool fee
+        //     assetRequiredInLINK += (assetRequiredInLINK * POOL_LINK_FEE) / DIVISOR_HUNDREDTHS_OF_BPS;
+        // console2.log("assetRequiredInLINK with valorem fee and meme pool fee: ", assetRequiredInLINK);
+        //
+        //     // account for USDC pool fee
+        //     assetRequiredInLINK += (assetRequiredInLINK * POOL_USDC_FEE) / DIVISOR_HUNDREDTHS_OF_BPS;
+        // console2.log("assetRequiredInLINK with valorem fee and meme pool fee and usdc pool fee: ", assetRequiredInLINK);
 
         // convert to WETH
         uint256 assetRequiredInWETH = quoter.quoteExactOutputSingle({
@@ -641,15 +653,17 @@ contract CashSettlerTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Put(you, putOption, memesAmount);
-        vault.exercise2Leg(ICashSettler.Exercise2LegData({
-            optionType: ICashSettler.OptionType.PUT,
-            optionId: putOption,
-            optionsAmount: memesAmount,
-            amount: assetRequiredInWETH,
-            token: LINK,
-            amountSurplus: minimumSurplusInUSDC,
-            poolToWeth: POOL_LINK_WETH
-        }));
+        vault.exercise2Leg(
+            ICashSettler.Exercise2LegData({
+                optionType: ICashSettler.OptionType.PUT,
+                optionId: putOption,
+                optionsAmount: memesAmount,
+                amount: assetRequiredInWETH,
+                token: LINK,
+                amountSurplus: minimumSurplusInUSDC,
+                poolToWeth: POOL_LINK_WETH
+            })
+        );
         // check balances after exercise
         assertEq(clearingHouse.balanceOf(me, putOption), 91, "clearinghouse my balance after exercise");
         assertEq(clearingHouse.balanceOf(you, putOption), 0, "clearinghouse your balance after exercise");
@@ -662,7 +676,11 @@ contract CashSettlerTest is Test {
         );
         assertEq(LINK.balanceOf(you), initialMEMEBalance, "meme your balance after exercise");
         assertGt(USDC.balanceOf(you), initialUSDCBalance, "stable your balance after exercise");
-        assertEq(LINK.balanceOf(address(clearingHouse)), 1e18 * 10 + _valoremFee(1e18 * 10), "meme clearinghouse balance after exercise");
+        assertEq(
+            LINK.balanceOf(address(clearingHouse)),
+            1e18 * 10 + _valoremFee(1e18 * 10),
+            "meme clearinghouse balance after exercise"
+        );
         assertEq(
             USDC.balanceOf(address(clearingHouse)),
             (7e6 * 101) + _valoremFee(7e6 * 101) - 7e6 * 10,

@@ -21,19 +21,16 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     struct SwapCallbackData {
         /// @custom:member caller The caller of the `exercise` function.
         address caller;
-
         /// @custom:member poolA The pool to swap from (i.e. MEME/WETH).
         IUniswapV3Pool poolA;
         /// @custom:member poolB The pool to swap to (i.e. WETH/USDC).
         IUniswapV3Pool poolB;
-
         /// @custom:member optionId Option Id assigned from ValoremOptionsClearinghouse.
         uint256 optionId;
         /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
         /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
         IERC20 exerciseToken;
-
         /// @custom:member depth The depth of the swap.
         uint8 depth;
         /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
@@ -120,7 +117,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
      * @notice Exercise an option via 2-leg swap.
      * @param data The data for exercising an option.
      */
-    function exercise2Leg(Exercise2LegData calldata data) onlyValidOption(data.optionId) external {
+    function exercise2Leg(Exercise2LegData calldata data) external onlyValidOption(data.optionId) {
         // Transform the data into internal format
 
         // Approve a token to be spent by ValoremOptionsClearinghouse
@@ -158,11 +155,12 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             sqrtPriceLimitX96: zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
             data: callbackData
         });
-        
-        if (data.optionType == OptionType.CALL) 
+
+        if (data.optionType == OptionType.CALL) {
             emit Call(msg.sender, data.optionId, data.optionsAmount);
-        else 
+        } else {
             emit Put(msg.sender, data.optionId, data.optionsAmount);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,7 +186,6 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             // Save amount out from the first swap to be paid out later
             decoded.amountToRepaySwap2 = uint256(amount0Delta);
 
-
             // Initiate the second swap
             decoded.poolB.swap({
                 recipient: address(this),
@@ -213,7 +210,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             decoded.exerciseToken.transfer(address(decoded.poolA), decoded.amountToRepaySwap2);
 
             // Check if the exercise is profitable and revert if not
-            require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable"); 
+            require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable");
 
             // Pay the profits out
             // TODO see if we can not do the balance call and instead just know the amount from the swap2 callback
