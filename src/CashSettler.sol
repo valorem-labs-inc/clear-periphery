@@ -7,6 +7,7 @@ import {ERC1155TokenReceiver} from "solmate/tokens/ERC1155.sol";
 import {IValoremOptionsClearinghouse} from "valorem-core/interfaces/IValoremOptionsClearinghouse.sol";
 import {ValoremOptionsClearinghouse} from "valorem-core/ValoremOptionsClearinghouse.sol";
 import {ICashSettler} from "./interfaces/ICashSettler.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title CashSettler.
@@ -87,9 +88,9 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
      */
     constructor(ValoremOptionsClearinghouse _clearingHouse, IERC20 _weth, IERC20 _usdc, IUniswapV3Pool _poolWethUsdc) {
         // Approve ValoremOptionsClearinghouse to spend WETH
-        IERC20(_weth).approve(address(_clearingHouse), type(uint256).max);
+        TransferHelper.safeApprove(address(_weth), address(_clearingHouse), type(uint256).max);
         // Approve ValoremOptionsClearinghouse to spend USDC
-        IERC20(_usdc).approve(address(_clearingHouse), type(uint256).max);
+        TransferHelper.safeApprove(address(_usdc), address(_clearingHouse), type(uint256).max);
 
         // Save state
         CLEARINGHOUSE = _clearingHouse;
@@ -123,7 +124,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         // Transform the data into internal format
 
         // Approve a token to be spent by ValoremOptionsClearinghouse
-        data.token.approve(address(CLEARINGHOUSE), type(uint256).max);
+        TransferHelper.safeApprove(address(data.token), address(CLEARINGHOUSE), type(uint256).max);
 
         // Transfer options to this contract
         CLEARINGHOUSE.safeTransferFrom(msg.sender, address(this), data.optionId, data.optionsAmount, "");
@@ -203,32 +204,23 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             }
 
             // Repay to the second swap straight away
-            _safeTransfer(address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
+            TransferHelper.safeTransfer(address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
 
             // Exercise options on the ValoremOptionsClearinghouse
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            _safeTransfer(address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2);
+            TransferHelper.safeTransfer(address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2);
 
             // Check if the exercise is profitable and revert if not
             require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable");
 
             // Pay the profits out
             // TODO see if we can not do the balance call and instead just know the amount from the swap2 callback
-            _safeTransfer(address(USDC), address(decoded.caller), USDC.balanceOf(address(this)));
+            TransferHelper.safeTransfer(address(USDC), address(decoded.caller), USDC.balanceOf(address(this)));
         } else {
             revert InvalidDepthError(decoded.depth);
         }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-    //  Helpers
-    //////////////////////////////////////////////////////////////*/
-
-    function _safeTransfer(address token, address to, uint value) private {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
     }
 
     /*//////////////////////////////////////////////////////////////
