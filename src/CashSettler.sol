@@ -64,6 +64,8 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     uint160 private constant MIN_SQRT_RATIO = 4295128739;
     /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK).
     uint160 private constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
+    /// @dev The ERC20 token transfer selector
+    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
     /*//////////////////////////////////////////////////////////////
     //  Valorem State
@@ -201,23 +203,32 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             }
 
             // Repay to the second swap straight away
-            WETH.transfer(address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
+            _safeTransfer(address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
 
             // Exercise options on the ValoremOptionsClearinghouse
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            decoded.exerciseToken.transfer(address(decoded.poolA), decoded.amountToRepaySwap2);
+            _safeTransfer(address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2);
 
             // Check if the exercise is profitable and revert if not
             require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable");
 
             // Pay the profits out
             // TODO see if we can not do the balance call and instead just know the amount from the swap2 callback
-            USDC.transfer(decoded.caller, USDC.balanceOf(address(this)));
+            _safeTransfer(address(USDC), address(decoded.caller), USDC.balanceOf(address(this)));
         } else {
             revert InvalidDepthError(decoded.depth);
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+    //  Helpers
+    //////////////////////////////////////////////////////////////*/
+
+    function _safeTransfer(address token, address to, uint value) private {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), 'TRANSFER_FAILED');
     }
 
     /*//////////////////////////////////////////////////////////////
