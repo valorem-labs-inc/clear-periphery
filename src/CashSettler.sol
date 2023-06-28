@@ -212,9 +212,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            SafeTransferLib.safeTransfer(
-                decoded.exerciseToken, address(decoded.poolA), decoded.amountToRepaySwap2
-            );
+            SafeTransferLib.safeTransfer(decoded.exerciseToken, address(decoded.poolA), decoded.amountToRepaySwap2);
 
             // Check if the exercise is profitable and revert if not
             require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable");
