@@ -4,10 +4,10 @@ pragma solidity 0.8.16;
 import "./interfaces/External.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC1155TokenReceiver} from "solmate/tokens/ERC1155.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {IValoremOptionsClearinghouse} from "valorem-core/interfaces/IValoremOptionsClearinghouse.sol";
 import {ValoremOptionsClearinghouse} from "valorem-core/ValoremOptionsClearinghouse.sol";
 import {ICashSettler} from "./interfaces/ICashSettler.sol";
-import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title CashSettler.
@@ -31,7 +31,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
         /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
-        IERC20 exerciseToken;
+        ERC20 exerciseToken;
         /// @custom:member depth The depth of the swap.
         uint8 depth;
         /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
@@ -46,9 +46,9 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
 
     // TODO optimize storage layout, probably store these as IERC20Minimal
     /// @dev The address of WETH.
-    IERC20 private immutable WETH;
+    ERC20 private immutable WETH;
     /// @dev The address of USDC.
-    IERC20 private immutable USDC;
+    ERC20 private immutable USDC;
 
     /*//////////////////////////////////////////////////////////////
     //  Uniswap State
@@ -86,11 +86,11 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
      * @param _usdc The address of USDC.
      * @param _poolWethUsdc The address of WETH-USDC pool.
      */
-    constructor(ValoremOptionsClearinghouse _clearingHouse, IERC20 _weth, IERC20 _usdc, IUniswapV3Pool _poolWethUsdc) {
+    constructor(ValoremOptionsClearinghouse _clearingHouse, ERC20 _weth, ERC20 _usdc, IUniswapV3Pool _poolWethUsdc) {
         // Approve ValoremOptionsClearinghouse to spend WETH
-        TransferHelper.safeApprove(address(_weth), address(_clearingHouse), type(uint256).max);
+        SafeTransferLib.safeApprove(_weth, address(_clearingHouse), type(uint256).max);
         // Approve ValoremOptionsClearinghouse to spend USDC
-        TransferHelper.safeApprove(address(_usdc), address(_clearingHouse), type(uint256).max);
+        SafeTransferLib.safeApprove(_usdc, address(_clearingHouse), type(uint256).max);
 
         // Save state
         CLEARINGHOUSE = _clearingHouse;
@@ -124,7 +124,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
         // Transform the data into internal format
 
         // Approve a token to be spent by ValoremOptionsClearinghouse
-        TransferHelper.safeApprove(address(data.token), address(CLEARINGHOUSE), type(uint256).max);
+        SafeTransferLib.safeApprove(ERC20(data.token), address(CLEARINGHOUSE), type(uint256).max);
 
         // Transfer options to this contract
         CLEARINGHOUSE.safeTransferFrom(msg.sender, address(this), data.optionId, data.optionsAmount, "");
@@ -140,7 +140,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
                 optionId: data.optionId,
                 optionsAmount: data.optionsAmount,
                 depth: 0,
-                exerciseToken: data.optionType == OptionType.CALL ? data.token : USDC,
+                exerciseToken: data.optionType == OptionType.CALL ? ERC20(data.token) : USDC,
                 amountSurplus: data.amountSurplus,
                 amountToRepaySwap2: 0,
                 caller: msg.sender
@@ -204,16 +204,16 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             }
 
             // Repay to the second swap straight away
-            TransferHelper.safeTransfer(
-                address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta)
+            SafeTransferLib.safeTransfer(
+                WETH, address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta)
             );
 
             // Exercise options on the ValoremOptionsClearinghouse
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            TransferHelper.safeTransfer(
-                address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2
+            SafeTransferLib.safeTransfer(
+                decoded.exerciseToken, address(decoded.poolA), decoded.amountToRepaySwap2
             );
 
             // Check if the exercise is profitable and revert if not
@@ -221,7 +221,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
 
             // Pay the profits out
             // TODO see if we can not do the balance call and instead just know the amount from the swap2 callback
-            TransferHelper.safeTransfer(address(USDC), address(decoded.caller), USDC.balanceOf(address(this)));
+            SafeTransferLib.safeTransfer(USDC, address(decoded.caller), USDC.balanceOf(address(this)));
         } else {
             revert InvalidDepthError(decoded.depth);
         }

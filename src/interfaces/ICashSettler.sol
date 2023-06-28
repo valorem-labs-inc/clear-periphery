@@ -55,7 +55,7 @@ interface ICashSettler {
         /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
         /// @custom:member token The token to exercise (i.e. MEME).
-        IERC20 token;
+        address token;
         /// @custom:member amount The amount of tokens to exercise (i.e. 10e9 MEME).
         uint256 amount;
         /// @custom:member amountSurplus The minimum amount of USDC to receive.

@@ -8,7 +8,7 @@ import {CashSettler, ICashSettler} from "../src/CashSettler.sol";
 import {IValoremOptionsClearinghouse} from "valorem-core/interfaces/IValoremOptionsClearinghouse.sol";
 import {ValoremOptionsClearinghouse} from "valorem-core/ValoremOptionsClearinghouse.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {IERC20, IUniswapV3Pool} from "../src/interfaces/External.sol";
+import {IUniswapV3Pool} from "../src/interfaces/External.sol";
 
 interface IQuoter {
     function quoteExactInput(bytes calldata path, uint256 amountIn) external returns (uint256 amountOut);
@@ -38,10 +38,10 @@ contract CashSettlerTest is Test {
     // assets
     ERC20 private memecoin;
     ERC20 private stablecoin;
-    IERC20 private constant WETH = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 private constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    IERC20 private constant PEPE = IERC20(0x6982508145454Ce325dDbE47a25d4ec3d2311933);
-    IERC20 private constant LINK = IERC20(0x514910771AF9Ca656af840dff83E8264EcF986CA);
+    ERC20 private constant WETH = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    ERC20 private constant USDC = ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    ERC20 private constant PEPE = ERC20(0x6982508145454Ce325dDbE47a25d4ec3d2311933);
+    ERC20 private constant LINK = ERC20(0x514910771AF9Ca656af840dff83E8264EcF986CA);
 
     IUniswapV3Pool private constant POOL_USDC_WETH = IUniswapV3Pool(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640);
     uint24 private constant POOL_USDC_FEE = 500;
@@ -114,7 +114,7 @@ contract CashSettlerTest is Test {
         /// @custom:member optionsAmount The amount of options to exercise (i.e. 10).
         uint112 optionsAmount;
         /// @custom:member exerciseToken The token to use for exercising (i.e. MEME).
-        IERC20 exerciseToken;
+        ERC20 exerciseToken;
         /// @custom:member depth The depth of the swap.
         uint8 depth;
         /// @custom:member amountSurplus Minimum amount of surplus, if it is less, the call reverts.
@@ -260,7 +260,7 @@ contract CashSettlerTest is Test {
                 optionId: short,
                 optionsAmount: 0,
                 amount: 0,
-                token: IERC20(address(0)),
+                token: address(0),
                 amountSurplus: 0,
                 poolToWeth: IUniswapV3Pool(address(0))
             })
@@ -292,7 +292,7 @@ contract CashSettlerTest is Test {
                 optionsAmount: 51,
                 optionId: itmcall,
                 amount: 0,
-                token: IERC20(address(memecoin)),
+                token: address(memecoin),
                 amountSurplus: 0,
                 poolToWeth: POOL_PEPE_WETH
             })
@@ -311,7 +311,7 @@ contract CashSettlerTest is Test {
                 poolB: POOL_PEPE_WETH,
                 optionId: 0,
                 optionsAmount: 0,
-                exerciseToken: IERC20(address(0)),
+                exerciseToken: ERC20(address(0)),
                 depth: 0,
                 amountSurplus: 0,
                 amountToRepaySwap2: 0
@@ -333,7 +333,7 @@ contract CashSettlerTest is Test {
                 poolB: POOL_PEPE_WETH,
                 optionId: 0,
                 optionsAmount: 0,
-                exerciseToken: IERC20(address(0)),
+                exerciseToken: ERC20(address(0)),
                 depth: 2,
                 amountSurplus: 0,
                 amountToRepaySwap2: 0
@@ -357,7 +357,7 @@ contract CashSettlerTest is Test {
                 optionsAmount: 50,
                 optionId: itmcall,
                 amount: 50,
-                token: IERC20(address(memecoin)),
+                token: address(memecoin),
                 amountSurplus: 0,
                 poolToWeth: POOL_PEPE_WETH
             })
@@ -377,7 +377,7 @@ contract CashSettlerTest is Test {
                 optionId: itmcall,
                 optionsAmount: 10,
                 amount: 50,
-                token: IERC20(address(memecoin)),
+                token: address(memecoin),
                 amountSurplus: 0,
                 poolToWeth: POOL_PEPE_WETH
             })
@@ -509,7 +509,7 @@ contract CashSettlerTest is Test {
                 optionId: callOption,
                 optionsAmount: memesAmount,
                 amount: assetRequiredInWETH,
-                token: LINK,
+                token: address(LINK),
                 amountSurplus: minimumSurplusInUSDC,
                 poolToWeth: POOL_LINK_WETH
             })
@@ -659,7 +659,7 @@ contract CashSettlerTest is Test {
                 optionId: putOption,
                 optionsAmount: memesAmount,
                 amount: assetRequiredInWETH,
-                token: LINK,
+                token: address(LINK),
                 amountSurplus: minimumSurplusInUSDC,
                 poolToWeth: POOL_LINK_WETH
             })
