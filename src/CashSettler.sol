@@ -66,7 +66,7 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
     /// @dev The maximum value that can be returned from #getSqrtRatioAtTick. Equivalent to getSqrtRatioAtTick(MAX_TICK).
     uint160 private constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
     /// @dev The ERC20 token transfer selector
-    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
+    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
 
     /*//////////////////////////////////////////////////////////////
     //  Valorem State
@@ -204,13 +204,17 @@ contract CashSettler is ICashSettler, ERC1155TokenReceiver, IUniswapV3SwapCallba
             }
 
             // Repay to the second swap straight away
-            TransferHelper.safeTransfer(address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
+            TransferHelper.safeTransfer(
+                address(WETH), address(decoded.poolB), zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta)
+            );
 
             // Exercise options on the ValoremOptionsClearinghouse
             CLEARINGHOUSE.exercise(decoded.optionId, decoded.optionsAmount);
 
             // Repay to the first swap
-            TransferHelper.safeTransfer(address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2);
+            TransferHelper.safeTransfer(
+                address(decoded.exerciseToken), address(decoded.poolA), decoded.amountToRepaySwap2
+            );
 
             // Check if the exercise is profitable and revert if not
             require(decoded.amountSurplus <= USDC.balanceOf(address(this)), "Not profitable");
